@@ -2,7 +2,7 @@ version: '3.5'
 
 services:
   contracts-env:
-    user: "${USERID?}:${USERID?}"
+    user: "root:root"
     env_file:
       - .env
     build:
