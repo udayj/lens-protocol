@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.10;
 
-interface IBuyCollectModule {
+interface IEcommCollectModule {
 
 
     function isBuyer(uint256 profileId, uint256 pubId, address buyer) external view returns(bool);

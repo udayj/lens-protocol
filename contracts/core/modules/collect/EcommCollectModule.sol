@@ -11,7 +11,7 @@ import {IERC721} from '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 import {FeeModuleBase} from '../FeeModuleBase.sol';
 import {ModuleBase} from '../ModuleBase.sol';
 import {FollowValidationModuleBase} from '../FollowValidationModuleBase.sol';
-import {ILensHub} from '../../interfaces/ILensHub.sol';
+import {ILensHub} from '../../../interfaces/ILensHub.sol';
 import {IFollowModule} from '../../../interfaces/IFollowModule.sol';
 import {IEcommReferenceModule} from '../../../interfaces/IEcommReferenceModule.sol';
 import {IEcommFollowModule} from '../../../interfaces/IEcommFollowModule.sol';
@@ -39,7 +39,7 @@ struct SellerProductData {
 }
 
 
-contract EcommCollectModule is ICollectModule, FeeModuleBase {
+contract EcommCollectModule is ICollectModule, FeeModuleBase, FollowValidationModuleBase {
 
     using SafeERC20 for IERC20;
 
@@ -47,15 +47,15 @@ contract EcommCollectModule is ICollectModule, FeeModuleBase {
         internal _dataByProductBySeller; //_dataByPublicationByProfile
     
     //this mapping keeps track of whether an address is a buyer for a product/seller combination
-    mapping(uint256 => mapping(uint256 => mapping (address => bool)))
+    mapping(uint256 => mapping(uint256 => mapping(address => bool)))
         internal _isBuyerByProductBySeller;
 
     //this mapping keeps track of the total number of sales made by a referrer
-    mapping(uint256 => mapping(uint256 => mapping (address => uint256)))
+    mapping(uint256 => mapping(uint256 => mapping(address => uint256)))
         internal _totalReferenceCountByProductBySeller;
     
     //this mapping keeps track of the total number of unpaid referrals for a referrer
-    mapping(uint256 => mapping(uint256 => mapping (address => uint256)))
+    mapping(uint256 => mapping(uint256 => mapping(address => uint256)))
         internal _unpaidReferenceCountByProductBySeller;
     
     constructor(address hub, address moduleGlobals) FeeModuleBase(moduleGlobals) ModuleBase(hub) {}
@@ -181,7 +181,7 @@ contract EcommCollectModule is ICollectModule, FeeModuleBase {
     ) external virtual override onlyHub {
 
             //only supporting direct buying of the product(publication) and not doing anything for collecting reviews
-            if (reffererProfileId==profileId) {
+            if (referrerProfileId==profileId) {
                 _processCollect(collector, profileId, pubId, data);
             }
 
@@ -199,12 +199,11 @@ contract EcommCollectModule is ICollectModule, FeeModuleBase {
         address sellerAccountAddress = _dataByProductBySeller[profileId][pubId].sellerAccountAddress;
       
 
-        (address dataCurrency, address platform, address referrer, uint256 dataCurrentPrice) = abi.decode(
-            data,(address,address, address, uint256)
+        (address platform, address referrer) = abi.decode(
+            data,(address, address)
         );
 
-        require(dataCurrency == currency, "Currency mismatch");
-        require(dataCurrentPrice == currentPrice, "Price Mismatch");
+       
 
 
         uint256 totalDiscount = 0;
@@ -291,7 +290,7 @@ contract EcommCollectModule is ICollectModule, FeeModuleBase {
     isInitialized(profileId, pubId) {
 
         address referenceModule = ILensHub(HUB).getReferenceModule(profileId, pubId);
-        require(IReviewAndReferralModule(referenceModule).isReferrer(profileId, pubId, msg.sender),"Not a referrer");
+        require(IEcommReferenceModule(referenceModule).isReferrer(profileId, pubId, msg.sender),"Not a referrer");
 
          address currency = _dataByProductBySeller[profileId][pubId].currency;
          uint256 feePerReferral = _dataByProductBySeller[profileId][pubId].feePerReferral;
@@ -301,5 +300,6 @@ contract EcommCollectModule is ICollectModule, FeeModuleBase {
          address seller = IERC721(HUB).ownerOf(profileId);
          IERC20(currency).safeTransferFrom(seller, msg.sender, feePerReferral*numUnpaidReferrals);
     }
+}
 
 

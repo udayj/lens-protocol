@@ -6,8 +6,8 @@ import {IReferenceModule} from '../../../interfaces/IReferenceModule.sol';
 import {ModuleBase} from '../ModuleBase.sol';
 import {FollowValidationModuleBase} from '../FollowValidationModuleBase.sol';
 import {IERC721} from '@openzeppelin/contracts/token/ERC721/IERC721.sol';
-import {ILensHub} from '../interfaces/ILensHub.sol';
-import {IBuyCollectModule} from '../../../interfaces/IEcommCollectModule.sol';
+import {ILensHub} from '../../../interfaces/ILensHub.sol';
+import {IEcommCollectModule} from '../../../interfaces/IEcommCollectModule.sol';
 
 
 
@@ -19,10 +19,10 @@ import {IBuyCollectModule} from '../../../interfaces/IEcommCollectModule.sol';
  * reviews are enabled by checking that a given address has bought(collected) a given product(publication)
  * referrals are enabled by recording every mirror action and providing a function to confirm whether an address is a referrer
  */
-contract EcommReferenceModule is IReferenceModule{
+contract EcommReferenceModule is IReferenceModule, ModuleBase{
 
     //simple mapping to record whether a given address is a referrer for a seller/product combination
-     mapping(uint256 => (mapping(uint256 => (mapping(address => bool)))))
+     mapping(uint256 => mapping(uint256 => mapping(address => bool)))
          internal _isReferrerByProductBySeller;
 
 
@@ -58,7 +58,7 @@ contract EcommReferenceModule is IReferenceModule{
             "Not authorised to review");
     }
 
-    /**
+    /** 
      * @notice Records that the referrer for the product/seller combination
      * mirror is semantically remapped to refer (this is what will power the referral marketing for any seller)
      * 
@@ -67,7 +67,7 @@ contract EcommReferenceModule is IReferenceModule{
         uint256 profileId,
         uint256 profileIdPointed,
         uint256 pubIdPointed
-    ) external view override {
+    ) external override {
         address mirrorCreator = IERC721(HUB).ownerOf(profileId);
         _isReferrerByProductBySeller[profileIdPointed][pubIdPointed][mirrorCreator]=true;
     }

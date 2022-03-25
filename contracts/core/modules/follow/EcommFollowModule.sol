@@ -11,6 +11,7 @@ import {FollowValidatorFollowModuleBase} from './FollowValidatorFollowModuleBase
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {IERC721} from '@openzeppelin/contracts/token/ERC721/IERC721.sol';
+import {IERC721Enumerable} from '@openzeppelin/contracts/token/ERC721/extensions/IERC721Enumerable.sol';
 
 /**
  * @notice A struct containing the necessary data to execute evangelist / membership actions for a given seller
@@ -42,7 +43,7 @@ contract EcommFollowModule is IFollowModule, FeeModuleBase, FollowValidatorFollo
     mapping(uint256 => ProfileData) internal _dataByProfile;
     
     mapping(uint256 => mapping(uint256 => bool)) internal _isEvangelist;
-    mapping(uint256 => mapping(address => uint256)) internal _membershipExpiry;
+    mapping(uint256 => mapping(uint256 => uint256)) internal _membershipExpiry;
 
 
     /**
@@ -98,9 +99,9 @@ contract EcommFollowModule is IFollowModule, FeeModuleBase, FollowValidatorFollo
     ) external override onlyHub {
        
         address currency = _dataByProfile[profileId].currency;
-        address recepient = _dataByProfile[profileId].recepient;
+        address recipient = _dataByProfile[profileId].recipient;
        
-        (uint256 typeOfFollower) = abi.decode(data,uint256);
+        (uint256 typeOfFollower) = abi.decode(data,(uint256));
 
         //simple evangelist entitled to a limited time discount on purchase
         require(typeOfFollower < 2, "Invalid follower type");
@@ -121,15 +122,18 @@ contract EcommFollowModule is IFollowModule, FeeModuleBase, FollowValidatorFollo
         }
    
     }
+    /**
+    *@notice - this function gives the Follow NFT token Id whose owner is follower
+     */
 
-    function _getTokenId(uint256 profileId, address follower) internal returns(uint256) {
+    function _getTokenId(uint256 profileId, address follower) internal view returns(uint256) {
 
         address followNFT = ILensHub(HUB).getFollowNFT(profileId);
-        uint256 numTokens = IERC721(followNFT).balanceOf(follower);
+        uint256 numTokens = IERC721Enumerable(followNFT).balanceOf(follower);
         require(numTokens>0,"Error in issuing Follow NFT");
 
         //return the last tokenId issued to the follower address
-        return IERC721(followNFT).balanceOfOwnerByIndex(follower,numTokens-1);
+        return IERC721Enumerable(followNFT).tokenOfOwnerByIndex(follower,numTokens-1);
     }
 
     /**
@@ -160,13 +164,13 @@ contract EcommFollowModule is IFollowModule, FeeModuleBase, FollowValidatorFollo
     function isFollowerEvangelist(uint256 profileId, address follower) external view returns(bool) {
 
         address followNFT = ILensHub(HUB).getFollowNFT(profileId);
-        uint256 numTokens = IERC721(followNFT).balanceOf(follower);
+        uint256 numTokens = IERC721Enumerable(followNFT).balanceOf(follower);
 
         if(numTokens==0) {
             return false;
         }
         for(uint256 i=0;i<numTokens;i++) {
-            uint256 tokenId = IERC721(followNFT).tokenOfOwnerByIndex(follower,i);
+            uint256 tokenId = IERC721Enumerable(followNFT).tokenOfOwnerByIndex(follower,i);
             if(_isEvangelist[profileId][tokenId]) {
                 return true;
             }
@@ -179,10 +183,10 @@ contract EcommFollowModule is IFollowModule, FeeModuleBase, FollowValidatorFollo
     *  @notice Returns whether given address has subscribed to the seller's membership program
      */
 
-    function isMember(uint256 profileId, address follower) external view returns(bool) {
+    function isMember(uint256 profileId, address follower) public view returns(bool) {
 
         address followNFT = ILensHub(HUB).getFollowNFT(profileId);
-        uint256 numTokens = IERC721(followNFT).balanceOf(follower);
+        uint256 numTokens = IERC721Enumerable(followNFT).balanceOf(follower);
 
         if(numTokens==0) {
             return false;
@@ -190,7 +194,7 @@ contract EcommFollowModule is IFollowModule, FeeModuleBase, FollowValidatorFollo
 
 
         for(uint256 i=0;i<numTokens;i++) {
-            uint256 tokenId = IERC721(followNFT).tokenOfOwnerByIndex(follower,i);
+            uint256 tokenId = IERC721Enumerable(followNFT).tokenOfOwnerByIndex(follower,i);
             if(_membershipExpiry[profileId][tokenId]!=0 && _membershipExpiry[profileId][tokenId] <block.timestamp) {
                 return true;
             }
@@ -206,16 +210,17 @@ contract EcommFollowModule is IFollowModule, FeeModuleBase, FollowValidatorFollo
 
     function renewMembership(uint256 profileId) external {
 
-        require(membershipExpiry[profileId][msg.sender]!=0, "Cannot renew non-existant membership");
+        uint256 tokenId = _getTokenId(profileId, msg.sender);
+        //require(_membershipExpiry[profileId][tokenId]!=0, "Cannot renew non-existant membership");
         require(!isMember(profileId,msg.sender),"Membership still valid");
 
          address currency = _dataByProfile[profileId].currency;
          uint256 amount = _dataByProfile[profileId].membershipFee;
-         address recepient = _dataByProfile[profileId].recepient;
+         address recipient = _dataByProfile[profileId].recipient;
 
          IERC20(currency).safeTransferFrom(msg.sender, recipient, _dataByProfile[profileId].membershipFee);
 
-         _membershipExpiry[profileId][follower]=block.timestamp + 365*24*60*60; // this is again configurable
+         _membershipExpiry[profileId][tokenId]=block.timestamp + 365*24*60*60; // this is again configurable
 
     }
 
