@@ -243,8 +243,7 @@ contract EcommCollectModule is ICollectModule, FeeModuleBase {
                 (currentPrice*totalDiscount*_dataByProductBySeller[profileId][pubId].platformFee)/10000);
         }
         
-        //record that collector is a buyer - will be necessary for checking if collector can review(comment) on the product
-        _isBuyerByProductBySeller[profileId][pubId][collector]=true;
+        
         address referenceModule = ILensHub(HUB).getReferenceModule(profileId, pubId);
 
         if(IEcommReferenceModule(referenceModule).isReferrer(profileId, pubId, referrer)) {
@@ -280,7 +279,12 @@ contract EcommCollectModule is ICollectModule, FeeModuleBase {
 
     function isBuyer(uint256 profileId, uint256 pubId, address buyer) external view returns(bool) {
 
-        return _isBuyerByProductBySeller[profileId][pubId][buyer];
+        address collectNFT = ILensHub(HUB).getCollectNFT(profileId, pubId);
+        uint256 numTokens = IERC721(collectNFT).balanceOf(buyer);
+        if(numTokens == 0) {
+            return false;
+        }
+        return true;
     }
 
     function withdrawReferralFees(uint256 profileId, uint256 pubId, address referrer) external 
@@ -299,4 +303,3 @@ contract EcommCollectModule is ICollectModule, FeeModuleBase {
     }
 
 
-}

@@ -41,7 +41,7 @@ contract EcommFollowModule is IFollowModule, FeeModuleBase, FollowValidatorFollo
 
     mapping(uint256 => ProfileData) internal _dataByProfile;
     
-    mapping(uint256 => mapping(address => bool)) internal _isEvangelist;
+    mapping(uint256 => mapping(uint256 => bool)) internal _isEvangelist;
     mapping(uint256 => mapping(address => uint256)) internal _membershipExpiry;
 
 
@@ -107,17 +107,29 @@ contract EcommFollowModule is IFollowModule, FeeModuleBase, FollowValidatorFollo
         if(typeOfFollower==0) {
 
             IERC20(currency).safeTransferFrom(follower, recipient, _dataByProfile[profileId].evangelistFee);
-            _isEvangelist[profileId][follower]=true;
+            uint256 tokenId = _getTokenId(profileId,follower);
+            _isEvangelist[profileId][tokenId]=true;
             return;
         }
         // prime like member entitled to discounts for 1 year
         if(typeOfFollower==1) {
 
             IERC20(currency).safeTransferFrom(follower, recipient, _dataByProfile[profileId].membershipFee);
-            _membershipExpiry[profileId][follower]=block.timestamp + 365*24*60*60; // membership time period is configurable
+             uint256 tokenId = _getTokenId(profileId,follower);
+            _membershipExpiry[profileId][tokenId]=block.timestamp + 365*24*60*60; // membership time period is configurable
 
         }
    
+    }
+
+    function _getTokenId(uint256 profileId, address follower) internal returns(uint256) {
+
+        address followNFT = ILensHub(HUB).getFollowNFT(profileId);
+        uint256 numTokens = IERC721(followNFT).balanceOf(follower);
+        require(numTokens>0,"Error in issuing Follow NFT");
+
+        //return the last tokenId issued to the follower address
+        return IERC721(followNFT).balanceOfOwnerByIndex(follower,numTokens-1);
     }
 
     /**
@@ -147,7 +159,20 @@ contract EcommFollowModule is IFollowModule, FeeModuleBase, FollowValidatorFollo
     */
     function isFollowerEvangelist(uint256 profileId, address follower) external view returns(bool) {
 
-        return _isEvangelist[profileId][follower];
+        address followNFT = ILensHub(HUB).getFollowNFT(profileId);
+        uint256 numTokens = IERC721(followNFT).balanceOf(follower);
+
+        if(numTokens==0) {
+            return false;
+        }
+        for(uint256 i=0;i<numTokens;i++) {
+            uint256 tokenId = IERC721(followNFT).tokenOfOwnerByIndex(follower,i);
+            if(_isEvangelist[profileId][tokenId]) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -156,11 +181,23 @@ contract EcommFollowModule is IFollowModule, FeeModuleBase, FollowValidatorFollo
 
     function isMember(uint256 profileId, address follower) external view returns(bool) {
 
-        if(block.timestamp > _membershipExpiry[profileId][follower]) {
+        address followNFT = ILensHub(HUB).getFollowNFT(profileId);
+        uint256 numTokens = IERC721(followNFT).balanceOf(follower);
+
+        if(numTokens==0) {
             return false;
         }
 
-        return true;
+
+        for(uint256 i=0;i<numTokens;i++) {
+            uint256 tokenId = IERC721(followNFT).tokenOfOwnerByIndex(follower,i);
+            if(_membershipExpiry[profileId][tokenId]!=0 && _membershipExpiry[profileId][tokenId] <block.timestamp) {
+                return true;
+            }
+        }
+        
+
+        return false;
     }
 
     /**
