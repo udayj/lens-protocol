@@ -22,6 +22,9 @@ import {
   TransparentUpgradeableProxy__factory,
   ProfileTokenURILogic__factory,
   LensPeripheryDataProvider__factory,
+  EcommCollectModule__factory,
+  EcommFollowModule__factory,
+  EcommReferenceModule__factory,
 } from '../typechain-types';
 import { deployContract, waitForTx } from './helpers/utils';
 
@@ -159,6 +162,13 @@ task('full-deploy', 'deploys the entire Lens Protocol').setAction(async ({}, hre
     )
   );
 
+  console.log('\n\t-- Deploying feeCollectModule --');
+  const EcommCollectModule = await deployContract(
+    new EcommCollectModule__factory(deployer).deploy(lensHub.address, moduleGlobals.address, {
+      nonce: deployerNonce++,
+    })
+  );
+
   console.log('\n\t-- Deploying revertCollectModule --');
   const revertCollectModule = await deployContract(
     new RevertCollectModule__factory(deployer).deploy({ nonce: deployerNonce++ })
@@ -180,6 +190,13 @@ task('full-deploy', 'deploys the entire Lens Protocol').setAction(async ({}, hre
     new ApprovalFollowModule__factory(deployer).deploy(lensHub.address, { nonce: deployerNonce++ })
   );
 
+  console.log('\n\t-- Deploying EcommFollowModule --');
+  const EcommFollowModule = await deployContract(
+    new EcommFollowModule__factory(deployer).deploy(lensHub.address, moduleGlobals.address, {
+      nonce: deployerNonce++,
+    })
+  );
+
   // Deploy reference module
   console.log('\n\t-- Deploying followerOnlyReferenceModule --');
   const followerOnlyReferenceModule = await deployContract(
@@ -188,12 +205,28 @@ task('full-deploy', 'deploys the entire Lens Protocol').setAction(async ({}, hre
     })
   );
 
+  console.log('\n\t-- Deploying followerOnlyReferenceModule --');
+  const EcommReferenceModule = await deployContract(
+    new EcommReferenceModule__factory(deployer).deploy(lensHub.address, {
+      nonce: deployerNonce++,
+    })
+  );
+
+
+
+
   // Whitelist the collect modules
   console.log('\n\t-- Whitelisting Collect Modules --');
   let governanceNonce = await ethers.provider.getTransactionCount(governance.address);
   await waitForTx(
     lensHub.whitelistCollectModule(feeCollectModule.address, true, { nonce: governanceNonce++ })
   );
+
+  await waitForTx(
+    lensHub.whitelistCollectModule(EcommCollectModule.address, true, { nonce: governanceNonce++ })
+  );
+
+
   await waitForTx(
     lensHub.whitelistCollectModule(limitedFeeCollectModule.address, true, {
       nonce: governanceNonce++,
@@ -221,6 +254,11 @@ task('full-deploy', 'deploys the entire Lens Protocol').setAction(async ({}, hre
   await waitForTx(
     lensHub.whitelistFollowModule(feeFollowModule.address, true, { nonce: governanceNonce++ })
   );
+
+  await waitForTx(
+    lensHub.whitelistFollowModule(EcommFollowModule.address, true, { nonce: governanceNonce++ })
+  );
+
   await waitForTx(
     lensHub.whitelistFollowModule(approvalFollowModule.address, true, { nonce: governanceNonce++ })
   );
@@ -229,6 +267,12 @@ task('full-deploy', 'deploys the entire Lens Protocol').setAction(async ({}, hre
   console.log('\n\t-- Whitelisting Reference Module --');
   await waitForTx(
     lensHub.whitelistReferenceModule(followerOnlyReferenceModule.address, true, {
+      nonce: governanceNonce++,
+    })
+  );
+
+  await waitForTx(
+    lensHub.whitelistReferenceModule(EcommReferenceModule.address, true, {
       nonce: governanceNonce++,
     })
   );
@@ -249,7 +293,7 @@ task('full-deploy', 'deploys the entire Lens Protocol').setAction(async ({}, hre
     'interaction logic lib': interactionLogic.address,
     'follow NFT impl': followNFTImplAddress,
     'collect NFT impl': collectNFTImplAddress,
-    currency: currency.address,
+    'currency': currency.address,
     'periphery data provider': peripheryDataProvider.address,
     'module globals': moduleGlobals.address,
     'fee collect module': feeCollectModule.address,
@@ -261,6 +305,9 @@ task('full-deploy', 'deploys the entire Lens Protocol').setAction(async ({}, hre
     'fee follow module': feeFollowModule.address,
     'approval follow module': approvalFollowModule.address,
     'follower only reference module': followerOnlyReferenceModule.address,
+    'ecommerce collect module': EcommCollectModule.address,
+    'ecommerce follow module': EcommFollowModule.address,
+    'ecommerce reference module': EcommReferenceModule.address,
   };
   const json = JSON.stringify(addrs, null, 2);
   console.log(json);

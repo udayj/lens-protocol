@@ -164,6 +164,9 @@ contract EcommFollowModule is IFollowModule, FeeModuleBase, FollowValidatorFollo
     function isFollowerEvangelist(uint256 profileId, address follower) external view returns(bool) {
 
         address followNFT = ILensHub(HUB).getFollowNFT(profileId);
+        if(followNFT==address(0)) {
+            return false;
+        }
         uint256 numTokens = IERC721Enumerable(followNFT).balanceOf(follower);
 
         if(numTokens==0) {
@@ -186,6 +189,12 @@ contract EcommFollowModule is IFollowModule, FeeModuleBase, FollowValidatorFollo
     function isMember(uint256 profileId, address follower) public view returns(bool) {
 
         address followNFT = ILensHub(HUB).getFollowNFT(profileId);
+
+        if(followNFT==address(0)) {
+            return false;
+        }
+
+
         uint256 numTokens = IERC721Enumerable(followNFT).balanceOf(follower);
 
         if(numTokens==0) {
@@ -195,7 +204,7 @@ contract EcommFollowModule is IFollowModule, FeeModuleBase, FollowValidatorFollo
 
         for(uint256 i=0;i<numTokens;i++) {
             uint256 tokenId = IERC721Enumerable(followNFT).tokenOfOwnerByIndex(follower,i);
-            if(_membershipExpiry[profileId][tokenId]!=0 && _membershipExpiry[profileId][tokenId] <block.timestamp) {
+            if(_membershipExpiry[profileId][tokenId]!=0 && _membershipExpiry[profileId][tokenId] > block.timestamp) {
                 return true;
             }
         }

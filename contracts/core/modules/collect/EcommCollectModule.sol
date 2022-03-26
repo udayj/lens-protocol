@@ -51,11 +51,11 @@ contract EcommCollectModule is ICollectModule, FeeModuleBase, FollowValidationMo
         internal _isBuyerByProductBySeller;
 
     //this mapping keeps track of the total number of sales made by a referrer
-    mapping(uint256 => mapping(uint256 => mapping(address => uint256)))
+    mapping(uint256 => mapping(uint256 => mapping(uint256 => uint256)))
         internal _totalReferenceCountByProductBySeller;
     
     //this mapping keeps track of the total number of unpaid referrals for a referrer
-    mapping(uint256 => mapping(uint256 => mapping(address => uint256)))
+    mapping(uint256 => mapping(uint256 => mapping(uint256 => uint256)))
         internal _unpaidReferenceCountByProductBySeller;
     
     constructor(address hub, address moduleGlobals) FeeModuleBase(moduleGlobals) ModuleBase(hub) {}
@@ -164,6 +164,7 @@ contract EcommCollectModule is ICollectModule, FeeModuleBase, FollowValidationMo
                 revert Errors.InitParamsInvalid();
             }
             // profileId is seller Id, publicationId is product Id
+            //ideally the seller address should be found from owner of profileId NFT
             _dataByProductBySeller[profileId][pubId].sellerAccountAddress=sellerAccountAddress;
             _dataByProductBySeller[profileId][pubId].currency = currency;
             _dataByProductBySeller[profileId][pubId].currentPrice = currentPrice ;
@@ -199,8 +200,8 @@ contract EcommCollectModule is ICollectModule, FeeModuleBase, FollowValidationMo
         address sellerAccountAddress = _dataByProductBySeller[profileId][pubId].sellerAccountAddress;
       
 
-        (address platform, address referrer) = abi.decode(
-            data,(address, address)
+        (address platform, uint256 referrerProfileId) = abi.decode(
+            data,(address, uint256)
         );
 
        
@@ -231,7 +232,7 @@ contract EcommCollectModule is ICollectModule, FeeModuleBase, FollowValidationMo
         }
 
         require(totalDiscount < 100, "Total discount cannot exceed 100%");
-        IERC20(currency).safeTransferFrom(collector,sellerAccountAddress,(currentPrice*totalDiscount)/100);
+        IERC20(currency).safeTransferFrom(collector,sellerAccountAddress,(currentPrice*(100-totalDiscount)/100));
 
         if(_dataByProductBySeller[profileId][pubId].isPlatformFeeEnabled) {
 
@@ -239,16 +240,16 @@ contract EcommCollectModule is ICollectModule, FeeModuleBase, FollowValidationMo
             IERC20(currency).safeTransferFrom(
                 collector,
                 platform,
-                (currentPrice*totalDiscount*_dataByProductBySeller[profileId][pubId].platformFee)/10000);
+                (currentPrice*(100-totalDiscount)*_dataByProductBySeller[profileId][pubId].platformFee)/10000);
         }
         
         
         address referenceModule = ILensHub(HUB).getReferenceModule(profileId, pubId);
 
-        if(IEcommReferenceModule(referenceModule).isReferrer(profileId, pubId, referrer)) {
+        if(IEcommReferenceModule(referenceModule).isReferrer(profileId, pubId, referrerProfileId)) {
 
-            _totalReferenceCountByProductBySeller[profileId][pubId][referrer]++;
-            _unpaidReferenceCountByProductBySeller[profileId][pubId][referrer]++;
+            _totalReferenceCountByProductBySeller[profileId][pubId][referrerProfileId]++;
+            _unpaidReferenceCountByProductBySeller[profileId][pubId][referrerProfileId]++;
         }
         
         
@@ -279,6 +280,11 @@ contract EcommCollectModule is ICollectModule, FeeModuleBase, FollowValidationMo
     function isBuyer(uint256 profileId, uint256 pubId, address buyer) external view returns(bool) {
 
         address collectNFT = ILensHub(HUB).getCollectNFT(profileId, pubId);
+
+        if(collectNFT==address(0)) {
+            return false;
+        }
+
         uint256 numTokens = IERC721(collectNFT).balanceOf(buyer);
         if(numTokens == 0) {
             return false;
@@ -286,19 +292,25 @@ contract EcommCollectModule is ICollectModule, FeeModuleBase, FollowValidationMo
         return true;
     }
 
-    function withdrawReferralFees(uint256 profileId, uint256 pubId, address referrer) external 
+    function withdrawReferralFees(uint256 profileId, uint256 pubId, uint256 referrerProfileId) external 
     isInitialized(profileId, pubId) {
 
         address referenceModule = ILensHub(HUB).getReferenceModule(profileId, pubId);
-        require(IEcommReferenceModule(referenceModule).isReferrer(profileId, pubId, msg.sender),"Not a referrer");
-
+        address referrerProfile = IERC721(HUB).ownerOf(referrerProfileId);
+        
+        require(IEcommReferenceModule(referenceModule).isReferrer(profileId, pubId, referrerProfileId),"Not a referrer");
+        require(referrerProfile == msg.sender, "Only referrer can withdraw funds");
          address currency = _dataByProductBySeller[profileId][pubId].currency;
          uint256 feePerReferral = _dataByProductBySeller[profileId][pubId].feePerReferral;
-         uint256 numUnpaidReferrals = _unpaidReferenceCountByProductBySeller[profileId][pubId][msg.sender];
+         uint256 numUnpaidReferrals = _unpaidReferenceCountByProductBySeller[profileId][pubId][referrerProfileId];
          require(numUnpaidReferrals > 0, "No referral fees to pay");
-         _unpaidReferenceCountByProductBySeller[profileId][pubId][msg.sender]=0;
+         _unpaidReferenceCountByProductBySeller[profileId][pubId][referrerProfileId]=0;
          address seller = IERC721(HUB).ownerOf(profileId);
          IERC20(currency).safeTransferFrom(seller, msg.sender, feePerReferral*numUnpaidReferrals);
+    }
+
+    function getProductData(uint256 profileId, uint256 pubId) external view returns (SellerProductData memory) {
+        return _dataByProductBySeller[profileId][pubId];
     }
 }
 

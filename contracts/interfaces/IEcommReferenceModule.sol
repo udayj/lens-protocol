@@ -5,5 +5,5 @@ pragma solidity 0.8.10;
 interface IEcommReferenceModule {
 
 
-    function isReferrer(uint256 profileId, uint256 pubId, address referrer) external view returns(bool);
+    function isReferrer(uint256 profileId, uint256 pubId, uint256 referrer) external view returns(bool);
 }

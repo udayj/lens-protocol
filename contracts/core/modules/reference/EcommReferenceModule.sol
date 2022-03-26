@@ -22,7 +22,7 @@ import {IEcommCollectModule} from '../../../interfaces/IEcommCollectModule.sol';
 contract EcommReferenceModule is IReferenceModule, ModuleBase{
 
     //simple mapping to record whether a given address is a referrer for a seller/product combination
-     mapping(uint256 => mapping(uint256 => mapping(address => bool)))
+     mapping(uint256 => mapping(uint256 => mapping(uint256 => bool)))
          internal _isReferrerByProductBySeller;
 
 
@@ -68,14 +68,14 @@ contract EcommReferenceModule is IReferenceModule, ModuleBase{
         uint256 profileIdPointed,
         uint256 pubIdPointed
     ) external override {
-        address mirrorCreator = IERC721(HUB).ownerOf(profileId);
-        _isReferrerByProductBySeller[profileIdPointed][pubIdPointed][mirrorCreator]=true;
+        //address mirrorCreator = IERC721(HUB).ownerOf(profileId);
+        _isReferrerByProductBySeller[profileIdPointed][pubIdPointed][profileId]=true;
     }
 
     /**
     * @notice Checks whether given address is a referrer for the product/seller combination
      */
-    function isReferrer(uint256 profileId, uint256 pubId, address referrer) external view returns(bool) {
+    function isReferrer(uint256 profileId, uint256 pubId, uint256 referrer) external view returns(bool) {
 
         return _isReferrerByProductBySeller[profileId][pubId][referrer];
     }
