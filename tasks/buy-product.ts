@@ -10,6 +10,7 @@ task('buy-product', 'buy a product from a seller represented by a Lens publicati
   const accounts = await ethers.getSigners();
   const buyer = accounts[4];
   const currencyContract = Currency__factory.connect(addrs['currency'],buyer);
+  //give buyer some currency
   await currencyContract.mint(buyer.address,10000);
 
   let balanceSeller = await currencyContract.balanceOf(user.address); 
@@ -19,6 +20,7 @@ task('buy-product', 'buy a product from a seller represented by a Lens publicati
   console.log("Initial Buyer Balance:",balanceBuyer);
 
   const abiCoder = new ethers.utils.AbiCoder();
+  //pass zero address for platform and no referrer
   const dataBuyHex = abiCoder.encode(['address','uint256'],[ethers.constants.AddressZero,0]);
   const dataBuyBytes = ethers.utils.arrayify(dataBuyHex);
 
@@ -26,6 +28,7 @@ task('buy-product', 'buy a product from a seller represented by a Lens publicati
 
   const ecommCollectAddress = await lensHub.getCollectModule(1,1);
   console.log("Ecomm collect module address:",ecommCollectAddress);
+  //approve the Ecomm Collect Module to transfer currency from buyer (to seller)
   await currencyContract.approve(ecommCollectAddress,10000);
 
   await waitForTx(lensHub.collect(1, 1, dataBuyBytes));

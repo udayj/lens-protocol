@@ -17,6 +17,8 @@ task('refer-member-buy-product', 'user1 refers a product, user2 becomes member a
   const buyer = accounts[5];
   const referrer = accounts[6];
   const currencyContract = Currency__factory.connect(addrs['currency'],user);
+
+  //give buyer some currency for paying subscription fees and buying the product
   await currencyContract.mint(buyer.address,100000);
 
   let balanceSeller = await currencyContract.balanceOf(user.address); 
@@ -42,6 +44,7 @@ task('refer-member-buy-product', 'user1 refers a product, user2 becomes member a
   };
 
   //const lensHub = LensHub__factory.connect(addrs['lensHub proxy'], buyer);
+  //create profile for referrer so that it can mirror a publication
   await waitForTx(lensHub.connect(referrer).createProfile(inputStruct));
   
   console.log(`Total supply (should be 2): ${await lensHub.totalSupply()}`);
@@ -59,6 +62,7 @@ task('refer-member-buy-product', 'user1 refers a product, user2 becomes member a
   }
 
 
+  //refer a product
   await waitForTx(lensHub.connect(referrer).mirror(mirrorStruct));
 
 
@@ -72,6 +76,7 @@ task('refer-member-buy-product', 'user1 refers a product, user2 becomes member a
   
 
   const abiCoder = new ethers.utils.AbiCoder();
+  //1 in the follow module data represents a membership type follow
   const dataFollowHex = abiCoder.encode(['uint256'],[1]);
   const dataFollowBytes = ethers.utils.arrayify(dataFollowHex);
 
@@ -97,6 +102,7 @@ task('refer-member-buy-product', 'user1 refers a product, user2 becomes member a
   const ecommCollectAddress = await lensHub.getCollectModule(1,1);
   await currencyContract.connect(buyer).approve(ecommCollectAddress,10000);
 
+  //here we pass zero address for the platform address and the referrer profile Id which is 2
   const dataBuyHex = abiCoder.encode(['address','uint256'],[ethers.constants.AddressZero,2]);
   const dataBuyBytes = ethers.utils.arrayify(dataBuyHex);
   await waitForTx(lensHub.connect(buyer).collect(1, 1, dataBuyBytes));
@@ -111,7 +117,7 @@ task('refer-member-buy-product', 'user1 refers a product, user2 becomes member a
 
   console.log(`Ecomm Collect NFT total supply (should be 2): ${totalSupply}`);
   console.log(
-    `Ecomm Collect NFT owner of ID 1: ${ownerOf}, user address (should be the same): ${buyer.address}`
+    `Ecomm Collect NFT owner of ID 2: ${ownerOf}, user address (should be the same): ${buyer.address}`
   );
   console.log(
     `Ecomm Collect NFT URI: ${collectNFTURI}, publication content URI (should be the same): ${publicationContentURI}`
@@ -126,13 +132,15 @@ task('refer-member-buy-product', 'user1 refers a product, user2 becomes member a
   await currencyContract.connect(user).approve(ecommCollectAddress,1000);
   await EcommCollectModule.connect(referrer).withdrawReferralFees(1,1,2);
 
+  //check that balance of buyer is reduced
   balanceBuyer = await currencyContract.balanceOf(buyer.address);
   console.log("Updated Buyer Balance:",balanceBuyer);
 
+  //balance of seller is increased by membership fees amount + selling price - referral fees
   balanceSeller = await currencyContract.balanceOf(user.address);
   console.log("Updated Seller Balance:",balanceSeller);
 
-
+  //balance of referrer should be increased by the referral fees amount 
   balanceReferrer = await currencyContract.balanceOf(referrer.address);
   console.log("Updated referrer balance:",balanceReferrer);
   

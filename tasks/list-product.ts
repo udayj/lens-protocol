@@ -16,6 +16,7 @@ task('list-product', 'publishes a post').setAction(async ({}, hre) => {
   const accounts = ethers.getSigners();
   const abiCoder = new ethers.utils.AbiCoder();
   const currency = addrs['currency'];
+  //pass address of recipient for sales proceeds, ERC20 currency address and selling price of 1 unit of the product
   const dataCollectHex = abiCoder.encode(['address','address','uint256'],[user.address,currency,10000]);
   const dataCollectBytes = ethers.utils.arrayify(dataCollectHex);
  const EcommCollectModule = EcommCollectModule__factory.connect(collectModuleAddress,user);

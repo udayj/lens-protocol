@@ -164,6 +164,7 @@ contract EcommFollowModule is IFollowModule, FeeModuleBase, FollowValidatorFollo
     function isFollowerEvangelist(uint256 profileId, address follower) external view returns(bool) {
 
         address followNFT = ILensHub(HUB).getFollowNFT(profileId);
+        //If follow NFT Implementation has not been initialized then clearly no address has followed this profile
         if(followNFT==address(0)) {
             return false;
         }

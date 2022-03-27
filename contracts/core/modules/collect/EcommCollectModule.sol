@@ -115,6 +115,9 @@ contract EcommCollectModule is ICollectModule, FeeModuleBase, FollowValidationMo
         _dataByProductBySeller[profileId][pubId].discountFollower=discount;
     }
 
+    /**
+    *@notice - This function allows a seller to set the referral fees for a particular product represented by pubId
+     */
     function setReferralFee(uint256 profileId, uint256 pubId, uint256 fee) 
     external onlyProfileOwner(profileId) isInitialized(profileId,pubId) {
 
@@ -199,7 +202,9 @@ contract EcommCollectModule is ICollectModule, FeeModuleBase, FollowValidationMo
         uint256 currentPrice = _dataByProductBySeller[profileId][pubId].currentPrice;
         address sellerAccountAddress = _dataByProductBySeller[profileId][pubId].sellerAccountAddress;
       
-
+        //the platform address should be passed in by the front-end enabling this sale
+        //the referrerProfileId should also be passed in by the front end for proper referrer attribution
+        //this referrerProfileId is the tokenId of the Profile NFT issued to a user who referred this product
         (address platform, uint256 referrerProfileId) = abi.decode(
             data,(address, uint256)
         );
@@ -246,6 +251,7 @@ contract EcommCollectModule is ICollectModule, FeeModuleBase, FollowValidationMo
         
         address referenceModule = ILensHub(HUB).getReferenceModule(profileId, pubId);
 
+        //update referral count for a particular referrer
         if(IEcommReferenceModule(referenceModule).isReferrer(profileId, pubId, referrerProfileId)) {
 
             _totalReferenceCountByProductBySeller[profileId][pubId][referrerProfileId]++;
@@ -277,6 +283,10 @@ contract EcommCollectModule is ICollectModule, FeeModuleBase, FollowValidationMo
 
     }
 
+    /**
+    * @notice - Check whether given address is buyer by pulling in the collect NFT and checking whether address hold a 
+                Collect NFT that was issued on buying the product
+     */
     function isBuyer(uint256 profileId, uint256 pubId, address buyer) external view returns(bool) {
 
         address collectNFT = ILensHub(HUB).getCollectNFT(profileId, pubId);
@@ -292,6 +302,10 @@ contract EcommCollectModule is ICollectModule, FeeModuleBase, FollowValidationMo
         return true;
     }
 
+    /**
+    * @notice - This function can be called by a valid referrer to claim referral fees accrued
+
+     */
     function withdrawReferralFees(uint256 profileId, uint256 pubId, uint256 referrerProfileId) external 
     isInitialized(profileId, pubId) {
 
